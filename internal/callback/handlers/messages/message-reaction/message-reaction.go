@@ -36,9 +36,15 @@ func New(log *slog.Logger, vk *api.VK) func(context.Context, events.GroupEvent) 
 
 		log.Info("Reaction received", slog.Int("from", obj.ReactedID), slog.Int("peer_id", obj.PeerID))
 
-		vk.MessagesSend(api.Params{
+		_, err = vk.MessagesSend(api.Params{
 			"peer_id": obj.PeerID,
 			"message": "Reaction ID = " + strconv.Itoa(obj.ReactionID),
 		})
+		if err != nil {
+			log.Error("send message error", slog.String("error", err.Error()))
+
+			return
+		}
+
 	}
 }

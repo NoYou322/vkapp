@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -10,15 +9,23 @@ import (
 
 	"github.com/SevereCloud/vksdk/v3/api"
 	"github.com/SevereCloud/vksdk/v3/callback"
-	"github.com/joho/godotenv"
+	"github.com/syumai/workers-go"
+	"github.com/syumai/workers-go/cloudflare"
 )
+
+func requiredEnv(key string) string {
+	value := cloudflare.Getenv(key)
+
+	if value == "" {
+		panic("missing environment variable: " + key)
+	}
+
+	return value
+}
 
 const EventMessageReaction = "callback_message_reaction_event"
 
 func main() {
-	if err := godotenv.Load(".env"); err != nil {
-		log.Fatalf("envirinment file does not exist: %s", err)
-	}
 	// TODO config
 
 	// TODO logger
@@ -29,12 +36,11 @@ func main() {
 		}))
 
 	// TODO init vk
-	vk := api.NewVK(os.Getenv("TOKEN"))
-	_ = vk
+	vk := api.NewVK(requiredEnv("TOKEN"))
 
 	cb := callback.NewCallback()
-
-	cb.ConfirmationKey = os.Getenv("CONFIRMITION_KEY")
+	cb.ConfirmationKey = requiredEnv("CONFIRMATION_KEY")
+	cb.SecretKey = cloudflare.Getenv("VK_SECRET")	
 
 	cb.MessageNew(messagenew.New(log, vk))
 	cb.OnEvent(EventMessageReaction, messagereaction.New(log, vk))
@@ -42,12 +48,6 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /callback", cb.HandleFunc)
-
-	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello world"))
-
-	})
-
 
 	log.Info("Server starting")
 
