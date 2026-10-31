@@ -1,24 +1,59 @@
 package main
 
 import (
-	"bytes"
-	"io"
+	"log"
+	"log/slog"
 	"net/http"
+	"os"
+	messagenew "vkbot/internal/callback/handlers/messages/message-new"
+	messagereaction "vkbot/internal/callback/handlers/messages/message-reaction"
 
-	"github.com/syumai/workers-go"
+	"github.com/SevereCloud/vksdk/v3/api"
+	"github.com/SevereCloud/vksdk/v3/callback"
+	"github.com/joho/godotenv"
 )
 
+const EventMessageReaction = "callback_message_reaction_event"
+
 func main() {
-	http.HandleFunc("/hello", func(w http.ResponseWriter, req *http.Request) {
-		msg := "Hello!"
-		w.Write([]byte(msg))
+	if err := godotenv.Load(".env"); err != nil {
+		log.Fatalf("envirinment file does not exist: %s", err)
+	}
+	// TODO config
+
+	// TODO logger
+	log := slog.New(slog.NewTextHandler(
+		os.Stdout,
+		&slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
+
+	// TODO init vk
+	vk := api.NewVK(os.Getenv("TOKEN"))
+	_ = vk
+
+	cb := callback.NewCallback()
+
+	cb.ConfirmationKey = os.Getenv("CONFIRMITION_KEY")
+
+	cb.MessageNew(messagenew.New(log, vk))
+	cb.OnEvent(EventMessageReaction, messagereaction.New(log, vk))
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /callback", cb.HandleFunc)
+
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello world"))
+
 	})
-	http.HandleFunc("/echo", func(w http.ResponseWriter, req *http.Request) {
-		b, err := io.ReadAll(req.Body)
-		if err != nil {
-			panic(err)
-		}
-		io.Copy(w, bytes.NewReader(b))
-	})
-	workers.Serve(nil) // use http.DefaultServeMux
+
+
+	log.Info("Server starting")
+
+	workers.Serve(mux)
+
+
 }
+
+
