@@ -14,7 +14,6 @@ import (
 )
 
 
-
 const EventMessageReaction = "callback_message_reaction_event"
 
 func main() {
@@ -40,6 +39,11 @@ cb.SecretKey = os.Getenv("VK_SECRET")
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /callback", cb.HandleFunc)
+
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello world"))
+
+	})
 
 	log.Info("Server starting")
 
